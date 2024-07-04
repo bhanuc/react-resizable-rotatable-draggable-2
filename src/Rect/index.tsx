@@ -1,9 +1,8 @@
-// import PropTypes from 'prop-types'
-import React, { PureComponent } from 'react'
-import { getLength, getAngle, getCursor } from '../utils'
-import StyledRect from './StyledRect'
+import React, { useRef, useState } from 'react';
+import { getLength, getAngle, getCursor } from '../utils';
+import StyledRect from './StyledRect';
 
-const zoomableMap = {
+const zoomableMap: Record<string, string> = {
   'n': 't',
   's': 'b',
   'e': 'r',
@@ -12,11 +11,39 @@ const zoomableMap = {
   'nw': 'tl',
   'se': 'br',
   'sw': 'bl'
+};
+
+interface Styles {
+  position: {
+    centerX: number;
+    centerY: number;
+  };
+  size: {
+    width: number;
+    height: number;
+  };
+  transform: {
+    rotateAngle: number;
+  };
 }
 
+interface RectProps {
+  styles: Styles;
+  zoomable: string;
+  rotatable: boolean;
+  onResizeStart?: () => void;
+  onResize?: (deltaL: number, alpha: number, rect: any, type: string, isShiftKey: boolean) => void;
+  onResizeEnd?: () => void;
+  onRotateStart?: () => void;
+  onRotate?: (angle: number, startAngle: number) => void;
+  onRotateEnd?: () => void;
+  onDragStart?: () => void;
+  onDrag?: (deltaX: number, deltaY: number) => void;
+  onDragEnd?: () => void;
+  parentRotateAngle: number;
+}
 
-
-const Rect = ({
+const Rect: React.FC<RectProps> = ({
   styles,
   zoomable,
   rotatable,
@@ -31,22 +58,22 @@ const Rect = ({
   onDragEnd,
   parentRotateAngle
 }) => {
-  const elementRef = useRef(null);
+  const elementRef = useRef<HTMLDivElement>(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
 
   // Drag
-  const startDrag = (e) => {
+  const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     let { clientX: startX, clientY: startY } = e;
     onDragStart && onDragStart();
     setIsMouseDown(true);
 
-    const onMove = (e) => {
+    const onMove = (e: MouseEvent) => {
       if (!isMouseDown) return;
       e.stopImmediatePropagation();
       const { clientX, clientY } = e;
       const deltaX = clientX - startX;
       const deltaY = clientY - startY;
-      onDrag(deltaX, deltaY);
+      onDrag && onDrag(deltaX, deltaY);
       startX = clientX;
       startY = clientY;
     };
@@ -64,10 +91,11 @@ const Rect = ({
   };
 
   // Rotate
-  const startRotate = (e) => {
+  const startRotate = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     const { clientX, clientY } = e;
     const { transform: { rotateAngle: startAngle } } = styles;
+    if (!elementRef.current) return;
     const rect = elementRef.current.getBoundingClientRect();
     const center = {
       x: rect.left + rect.width / 2,
@@ -80,7 +108,7 @@ const Rect = ({
     onRotateStart && onRotateStart();
     setIsMouseDown(true);
 
-    const onMove = (e) => {
+    const onMove = (e: MouseEvent) => {
       if (!isMouseDown) return;
       e.stopImmediatePropagation();
       const { clientX, clientY } = e;
@@ -89,7 +117,7 @@ const Rect = ({
         y: clientY - center.y
       };
       const angle = getAngle(startVector, rotateVector);
-      onRotate(angle, startAngle);
+      onRotate && onRotate(angle, startAngle);
     };
 
     const onUp = () => {
@@ -105,17 +133,17 @@ const Rect = ({
   };
 
   // Resize
-  const startResize = (e, cursor) => {
+  const startResize = (e: React.MouseEvent<HTMLDivElement>, cursor: string) => {
     if (e.button !== 0) return;
     document.body.style.cursor = cursor;
     const { position: { centerX, centerY }, size: { width, height }, transform: { rotateAngle } } = styles;
     const { clientX: startX, clientY: startY } = e;
     const rect = { width, height, centerX, centerY, rotateAngle };
-    const type = e.target.getAttribute('class').split(' ')[0];
+    const type = (e.target as HTMLElement).getAttribute('class')!.split(' ')[0];
     onResizeStart && onResizeStart();
     setIsMouseDown(true);
 
-    const onMove = (e) => {
+    const onMove = (e: MouseEvent) => {
       if (!isMouseDown) return;
       e.stopImmediatePropagation();
       const { clientX, clientY } = e;
@@ -124,7 +152,7 @@ const Rect = ({
       const alpha = Math.atan2(deltaY, deltaX);
       const deltaL = getLength(deltaX, deltaY);
       const isShiftKey = e.shiftKey;
-      onResize(deltaL, alpha, rect, type, isShiftKey);
+      onResize && onResize(deltaL, alpha, rect, type, isShiftKey);
     };
 
     const onUp = () => {
@@ -153,7 +181,6 @@ const Rect = ({
     top: centerY - Math.abs(height) / 2
   };
   const direction = zoomable.split(',').map(d => d.trim()).filter(d => d);
-
   return (
     <StyledRect
       ref={elementRef}
@@ -161,8 +188,7 @@ const Rect = ({
       className="rect single-resizer"
       style={style}
     >
-      {
-        rotatable &&
+      {rotatable &&
         <div className="rotate" onMouseDown={startRotate}>
           <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -173,25 +199,19 @@ const Rect = ({
           </svg>
         </div>
       }
-      {
-        direction.map(d => {
-          const cursor = `${getCursor(rotateAngle + parentRotateAngle, d)}-resize`;
-          return (
-            <div key={d} style={{ cursor }} className={`${zoomableMap[d]} resizable-handler`} onMouseDown={(e) => startResize(e, cursor)} />
-          );
-        })
-      }
-      {
-        direction.map(d => {
-          return (
-            <div key={d} className={`${zoomableMap[d]} square`} />
-          );
-        })
-      }
+      {direction.map(d => {
+        const cursor = `${getCursor(rotateAngle + parentRotateAngle, d)}-resize`;
+        return (
+          <div key={d} style={{ cursor }} className={`${zoomableMap[d]} resizable-handler`} onMouseDown={(e) => startResize(e, cursor)} />
+        );
+      })}
+      {direction.map(d => {
+        return (
+          <div key={d} className={`${zoomableMap[d]} square`} />
+        );
+      })}
     </StyledRect>
   );
 };
 
-
 export default Rect;
-

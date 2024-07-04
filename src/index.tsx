@@ -2,7 +2,30 @@ import React from 'react';
 import Rect from './Rect';
 import { centerToTL, tLToCenter, getNewStyle, degToRadian } from './utils';
 
-const ResizableRect = ({
+interface ResizableRectProps {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  rotatable?: boolean;
+  rotateAngle?: number;
+  parentRotateAngle?: number;
+  zoomable?: string;
+  minWidth?: number;
+  minHeight?: number;
+  aspectRatio?: number | boolean;
+  onRotateStart?: () => void;
+  onRotate?: (rotateAngle: number) => void;
+  onRotateEnd?: () => void;
+  onResizeStart?: () => void;
+  onResize?: (style: any, isShiftKey: boolean, type: string) => void;
+  onResizeEnd?: () => void;
+  onDragStart?: () => void;
+  onDrag?: (deltaX: number, deltaY: number) => void;
+  onDragEnd?: () => void;
+}
+
+const ResizableRect: React.FC<ResizableRectProps> = ({
   left,
   top,
   width,
@@ -25,7 +48,7 @@ const ResizableRect = ({
   onDragEnd
 }) => {
 
-  const handleRotate = (angle, startAngle) => {
+  const handleRotate = (angle: number, startAngle: number) => {
     if (!onRotate) return;
     let rotateAngle = Math.round(startAngle + angle);
     if (rotateAngle >= 360) {
@@ -45,12 +68,12 @@ const ResizableRect = ({
     onRotate(rotateAngle);
   };
 
-  const handleResize = (length, alpha, rect, type, isShiftKey) => {
+  const handleResize = (length: number, alpha: number, rect: any, type: string, isShiftKey: boolean) => {
     if (!onResize) return;
     const beta = alpha - degToRadian(rotateAngle + parentRotateAngle);
     const deltaW = length * Math.cos(beta);
     const deltaH = length * Math.sin(beta);
-    const ratio = isShiftKey && !aspectRatio ? rect.width / rect.height : aspectRatio;
+    const ratio = (isShiftKey && !aspectRatio ? rect.width / rect.height : aspectRatio as number);
     const {
       position: { centerX, centerY },
       size: { width, height }
@@ -59,7 +82,7 @@ const ResizableRect = ({
     onResize(centerToTL({ centerX, centerY, width, height, rotateAngle }), isShiftKey, type);
   };
 
-  const handleDrag = (deltaX, deltaY) => {
+  const handleDrag = (deltaX: number, deltaY: number) => {
     onDrag && onDrag(deltaX, deltaY);
   };
 
@@ -86,6 +109,5 @@ const ResizableRect = ({
     />
   );
 };
-
 
 export default ResizableRect;
