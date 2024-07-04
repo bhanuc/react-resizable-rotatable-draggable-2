@@ -2,7 +2,10 @@ import babel from 'rollup-plugin-babel'
 import resolve from 'rollup-plugin-node-resolve'
 import commonjs from 'rollup-plugin-commonjs'
 
-import { main as packageMain, module as packageModule } from './package.json'
+import pkg from './package.json' assert { type: 'json' };
+// import { main as packageMain, module as packageModule } from './package.json' assert { type: 'json' };
+
+const { main : packageMain, module : packageModule } = pkg;
 
 export default {
   input: 'src/index.js',
